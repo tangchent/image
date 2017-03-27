@@ -70,6 +70,7 @@ unsigned char isStopLine()
 	unsigned char lineConfirmCnt;
 	unsigned char blockCount, color;
 	unsigned char blockLength;
+
 	lineConfirmCnt = 0;
 	startLine = PICTURE_HIGHT - 5;
 	endLine = PICTURE_HIGHT - 20;
@@ -128,6 +129,9 @@ void CenterLineExtraction(void)
 	unsigned char leftBoundCnt;
 	unsigned char rightBoundCnt;
 	unsigned char isHorizontal;
+	signed char dxLeft;
+	signed char dxRight;
+
 	if (isStopLine())
 	{
 		isStop++;
@@ -158,68 +162,78 @@ void CenterLineExtraction(void)
 	//至于从左边向右边扫描还是右边向左边扫描应该更具上一次图像的偏向来求
 	//如果上一次是左转的结果，则此时图像的边界更可能在左边，此时应该从左边向右边扫描
 	//否则从右边向左边扫描
+
 	if (*(Image + i*PICTURE_WIDTH + lastFirstMidPoint) == BLACK_POINT
 		&& *(Image + (i - 1)*PICTURE_WIDTH + lastFirstMidPoint) == BLACK_POINT
 		)
 	{
-		for (j = 0; j < PICTURE_WIDTH - 3; ++j)
+		while (!leftFind&&!rightFind&&i > 5)
 		{
-			//黑色变白色，左边界
-			if (
-				(*(Image + i*PICTURE_WIDTH + j - 2) == BLACK_POINT)     &&
-				(*(Image + i*PICTURE_WIDTH + j - 1) == BLACK_POINT) &&
-				(*(Image + i*PICTURE_WIDTH + j)    ==  BLACK_POINT) &&
-				(*(Image + i*PICTURE_WIDTH + j + 1) == WHITE_POINT) &&
-				(*(Image + i*PICTURE_WIDTH + j + 2) == WHITE_POINT)
-				)
+			for (j = 0; j < PICTURE_WIDTH - 3; ++j)
 			{
-				*(boundLeft + i) = j;
-				leftFind = 1;
-				break;
+				//黑色变白色，左边界
+				if (
+					(*(Image + i*PICTURE_WIDTH + j - 2) == BLACK_POINT) &&
+					(*(Image + i*PICTURE_WIDTH + j - 1) == BLACK_POINT) &&
+					(*(Image + i*PICTURE_WIDTH + j) == BLACK_POINT) &&
+					(*(Image + i*PICTURE_WIDTH + j + 1) == WHITE_POINT) &&
+					(*(Image + i*PICTURE_WIDTH + j + 2) == WHITE_POINT)
+					)
+				{
+					*(boundLeft + i) = j;
+					leftFind = 1;
+					break;
+				}
+				//白色变黑色，右边界
+				if
+					(
+					(*(Image + i*PICTURE_WIDTH + j) == WHITE_POINT) &&
+					(*(Image + i*PICTURE_WIDTH + j - 1) == WHITE_POINT) &&
+					(*(Image + i*PICTURE_WIDTH + j - 2) == WHITE_POINT) &&
+					(*(Image + i*PICTURE_WIDTH + j + 1) == BLACK_POINT) &&
+					(*(Image + i*PICTURE_WIDTH + j + 2) == BLACK_POINT)
+					)
+				{
+					*(boundRight + i) = j;
+					rightFind = 1;
+					break;
+				}
 			}
-			//白色变黑色，右边界
-			if
-				(
-				(*(Image + i*PICTURE_WIDTH + j) == WHITE_POINT) &&
-				(*(Image + i*PICTURE_WIDTH + j - 1) == WHITE_POINT) &&
-				(*(Image + i*PICTURE_WIDTH + j - 2) == WHITE_POINT) &&
-				(*(Image + i*PICTURE_WIDTH + j + 1) == BLACK_POINT) &&
-				(*(Image + i*PICTURE_WIDTH + j + 2) == BLACK_POINT)
-				)
+			if (leftFind && rightFind)
 			{
-				*(boundRight + i) = j;
-				rightFind = 1;
-				break;
+				lastFirstMidPoint = (unsigned char)((*(boundLeft + i) + *(boundRight + i)) / 2);
+				leftSerchPoint.x = *(boundLeft + i);
+				leftSerchPoint.y = i;
+				rightSerchPoint.x = *(boundRight + i);
+				rightSerchPoint.y = i;
 			}
-		}
-		if (leftFind && rightFind)
-		{
-			lastFirstMidPoint = (unsigned char)((*(boundLeft + i) + *(boundRight + i)) / 2);
-			leftSerchPoint.x = *(boundLeft + i);
-			leftSerchPoint.y = i;
-		}
-		else if (!leftFind && rightFind)
-		{
-			*(boundLeft + i) = 0;
-			lastFirstMidPoint = (unsigned char)((*(boundRight + i)) / 2);
-		}
-		else if (leftFind && !rightFind)
-		{
-			*(boundRight + i) = PICTURE_WIDTH - 1;
-			lastFirstMidPoint = (unsigned char)((*(boundLeft + i) + *(boundRight + i)) / 2);
-			leftSerchPoint.x = *(boundLeft + i);
-			leftSerchPoint.y = i;
-		}
-		else
-		{
-			*(boundLeft + i) = 2;
-			*(boundRight + i) = PICTURE_WIDTH - 1;
-			lastFirstMidPoint = middlePoint;
-		}
-		*(MidPoints + i) = lastFirstMidPoint;
+			else if (!leftFind && rightFind)
+			{
+				*(boundLeft + i) = 0;
+				lastFirstMidPoint = (unsigned char)((*(boundRight + i)) / 2);
+				rightSerchPoint.x = *(boundRight + i);
+				rightSerchPoint.y = i;
+			}
+			else if (leftFind && !rightFind)
+			{
+				*(boundRight + i) = PICTURE_WIDTH - 1;
+				lastFirstMidPoint = (unsigned char)((*(boundLeft + i) + *(boundRight + i)) / 2);
+				leftSerchPoint.x = *(boundLeft + i);
+				leftSerchPoint.y = i;
+			}
+			else
+			{
+				*(boundLeft + i) = 2;
+				*(boundRight + i) = PICTURE_WIDTH - 1;
+				lastFirstMidPoint = middlePoint;
+			}
+			*(MidPoints + i) = lastFirstMidPoint;
 #if CONSOLE_PRINT
-		printf("LINE %d's MID POINT:%d ,LEFT:%d RIGHT:%d\n", i, lastFirstMidPoint, *(boundLeft + i), *(boundRight + i));
+			printf("LINE %d's MID POINT:%d ,LEFT:%d RIGHT:%d\n", i, lastFirstMidPoint, *(boundLeft + i), *(boundRight + i));
 #endif
+			--i;
+		}
+		
 	}
 	else
 	{
@@ -297,7 +311,7 @@ void CenterLineExtraction(void)
 #if CONSOLE_PRINT
 			printf("LINE %d's MID POINT:%d ,LEFT:%d RIGHT:%d\n",i, lastFirstMidPoint, *(boundLeft + i),*(boundRight + i));
 #endif
-			i--;
+			--i;
 		}
 	}
 
@@ -309,13 +323,13 @@ void CenterLineExtraction(void)
 	while (i > 5)
 	{
 		//左右边界都找到了
-		if (leftFind)
+		if (leftFind&&rightFind)
 		{
 			leftFind = 0;
 			i = leftSerchPoint.y;
-			j = leftSerchPoint.x - 3;
+			j = leftSerchPoint.x - 6;//此处可以更具dx来限定范围
 			if (j < 1) j = 1;
-			searchPosition = leftSerchPoint.x + 4;
+			searchPosition = leftSerchPoint.x + 6;
 			if (searchPosition > PICTURE_WIDTH - 1) searchPosition = PICTURE_WIDTH - 1;
 			for (; j < searchPosition; ++j)
 			{
@@ -323,9 +337,7 @@ void CenterLineExtraction(void)
 				//突变点，左边界
 				if (
 					(*(Image + i*PICTURE_WIDTH + j - 1) == color) &&
-					(*(Image + i*PICTURE_WIDTH + j + 1) == !color) &&
-					(*(Image + i*PICTURE_WIDTH + j + 2) == !color) &&
-					(*(Image + i*PICTURE_WIDTH + j + 3) == !color)
+					(*(Image + i*PICTURE_WIDTH + j + 1) == !color)
 					)
 				{
 					(leftBoundPoints + leftBoundCnt)->x = j;
@@ -337,24 +349,284 @@ void CenterLineExtraction(void)
 					break;
 				}
 			}
-			if (!leftFind)
+			rightFind = 0;
+			i = rightSerchPoint.y;
+			j = rightSerchPoint.x - 6;//此处可以更具dx来限定范围
+			if (j < 1) j = 1;
+			searchPosition = rightSerchPoint.x + 6;
+			if (searchPosition > PICTURE_WIDTH - 1) searchPosition = PICTURE_WIDTH - 1;
+			for (; j < searchPosition; ++j)
+			{
+				color = *(Image + i*PICTURE_WIDTH + j);
+				//突变点，左边界
+				if (
+					(*(Image + i*PICTURE_WIDTH + j - 1) == color) &&
+					(*(Image + i*PICTURE_WIDTH + j + 1) == !color)
+					)
+				{
+					(rightBoundPoints + rightBoundCnt)->x = j;
+					(rightBoundPoints + rightBoundCnt)->y = i;
+					rightFind = 1;
+					rightSerchPoint.x = j;
+					rightSerchPoint.y = i - 1;
+					rightBoundCnt++;
+					break;
+				}
+			}
+			if (!leftFind&&!rightFind)
 			{
 				break;
 			}
-			if (leftSerchPoint.x > RIGHT_BREAK || leftSerchPoint.x < LEFT_BREAK)
-				break;
+			if (leftBoundCnt > 1)
+			{
+				dxLeft = (leftBoundPoints + leftBoundCnt)->x - (leftBoundPoints + leftBoundCnt - 1)->x;
+#if CONSOLE_PRINT
+				printf("dx left at line %d is %d", (leftBoundPoints + leftBoundCnt)->y, dxLeft);
+#endif
+			}
+
 		}
 		//只找到左边
 		else if (leftFind)
 		{
-			i--;
+			leftFind = 0;
+			i = leftSerchPoint.y;
+			j = leftSerchPoint.x - 6;//此处可以更具dx来限定范围
+			if (j < 0) j = 0;
+			searchPosition = leftSerchPoint.x + 6;
+			if (searchPosition > PICTURE_WIDTH - 1) searchPosition = PICTURE_WIDTH - 1;
+			for (; j < searchPosition; ++j)
+			{
+				//突变点，左边界
+				if (
+					(*(Image + i*PICTURE_WIDTH + j) == BLACK_POINT) &&
+					(*(Image + i*PICTURE_WIDTH + j + 1) == WHITE_POINT)
+					)
+				{
+					(leftBoundPoints + leftBoundCnt)->x = j;
+					(leftBoundPoints + leftBoundCnt)->y = i;
+					leftFind = 1;
+					leftSerchPoint.x = j;
+					leftSerchPoint.y = i - 1;
+					leftBoundCnt++;
+					break;
+				}
+			}
+			if ((leftSerchPoint.x > RIGHT_BREAK || leftSerchPoint.x < LEFT_BREAK) && leftBoundCnt > 20)
+			{
+				break;
+			}
+			for (j = PICTURE_WIDTH - 1; j > leftSerchPoint.x + 5; --j)
+			{
+				if (
+					(*(Image + i*PICTURE_WIDTH + j) == BLACK_POINT) &&
+					(*(Image + i*PICTURE_WIDTH + j - 1) == WHITE_POINT)
+					)
+				{
+					(rightBoundPoints + rightBoundCnt)->x = j;
+					(rightBoundPoints + rightBoundCnt)->y = i;
+					rightFind = 1;
+					rightSerchPoint.x = j;
+					rightSerchPoint.y = i - 1;
+					rightBoundCnt++;
+					break;
+				}
+			}
 		}
 		//只找到右边
+		else if (rightFind)
+		{
+			rightFind = 0;
+			i = rightSerchPoint.y;
+			j = rightSerchPoint.x - 6;//此处可以更具dx来限定范围
+			if (j < 1) j = 1;
+			searchPosition = rightSerchPoint.x + 6;
+			if (searchPosition > PICTURE_WIDTH - 1) searchPosition = PICTURE_WIDTH - 1;
+			for (; j < searchPosition; ++j)
+			{
+				color = *(Image + i*PICTURE_WIDTH + j);
+				//突变点，左边界
+				if (
+					(*(Image + i*PICTURE_WIDTH + j - 1) == color) &&
+					(*(Image + i*PICTURE_WIDTH + j + 1) == !color)
+					)
+				{
+					(rightBoundPoints + rightBoundCnt)->x = j;
+					(rightBoundPoints + rightBoundCnt)->y = i;
+					rightFind = 1;
+					rightSerchPoint.x = j;
+					rightSerchPoint.y = i - 1;
+					rightBoundCnt++;
+					break;
+				}
+			}
+			if ((rightSerchPoint.x > RIGHT_BREAK || rightSerchPoint.x < LEFT_BREAK) && rightBoundCnt > 20)
+			{
+				break;
+			}
+			for (j = 0; j < rightSerchPoint.x - 5; ++j)
+			{
+				if (
+					(*(Image + i*PICTURE_WIDTH + j) == BLACK_POINT) &&
+					(*(Image + i*PICTURE_WIDTH + j + 1) == WHITE_POINT)
+					)
+				{
+					(leftBoundPoints + leftBoundCnt)->x = j;
+					(leftBoundPoints + leftBoundCnt)->y = i;
+					leftFind = 1;
+					leftSerchPoint.x = j;
+					leftSerchPoint.y = i - 1;
+					leftBoundCnt++;
+					break;
+				}
+			}
+		}
 		else
 		{
-			i--;
+			//用于应对
+			//11111                  0000
+			//111                   0000
+			//0000                  0000
+			//000                    000 这里就是 i > 的行数
+			//000                  00000
+			//0000                   011
+			//000000                0111
+			//000000               11111
+			//000000              011111 
+			if (leftBoundCnt == 0 && rightBoundCnt < 21)
+			{
+				i = rightSerchPoint.y;
+				for (; i > rightSerchPoint.y - 20&&i>0; --i)
+				{
+					for (j = 0; j < rightSerchPoint.x - 5; ++j)
+					{
+						if (
+							(*(Image + i*PICTURE_WIDTH + j) == BLACK_POINT) &&
+							(*(Image + i*PICTURE_WIDTH + j + 1) == WHITE_POINT)
+							)
+						{
+							(leftBoundPoints + leftBoundCnt)->x = j;
+							(leftBoundPoints + leftBoundCnt)->y = i;
+							leftFind = 1;
+							leftSerchPoint.x = j;
+							leftSerchPoint.y = i - 1;
+							leftBoundCnt++;
+							break;
+						}
+					}
+				}
+				if (!leftFind)
+					break;
+			}
+			else if (rightBoundCnt == 0 && leftBoundCnt < 21)
+			{
+				i = leftSerchPoint.y;
+				for (; i > rightSerchPoint.y - 20 && i>0; --i)
+				{
+					for (j = PICTURE_WIDTH - 1; j > leftSerchPoint.x + 5; --j)
+					{
+						if (
+							(*(Image + i*PICTURE_WIDTH + j) == BLACK_POINT) &&
+							(*(Image + i*PICTURE_WIDTH + j - 1) == WHITE_POINT)
+							)
+						{
+							(rightBoundPoints + rightBoundCnt)->x = j;
+							(rightBoundPoints + rightBoundCnt)->y = i;
+							rightFind = 1;
+							rightSerchPoint.x = j;
+							rightSerchPoint.y = i - 1;
+							rightBoundCnt++;
+							break;
+						}
+					}
+				}
+				if (!rightFind)
+					break;
+			}
+			//如果左右边界的行数都是比较近处的，也是出现了错误，只好重新来扫描
+			else if (leftSerchPoint.y > 52&&rightSerchPoint.y > 52)
+			{
+				i = leftSerchPoint.y;
+				while (!leftFind&&!rightFind&&i>5)
+				{
+					leftFind = 0;
+					rightFind = 0;
+					searchPosition = lastFirstMidPoint;
+					//近处第一行扫描找左边界
+					for (j = 0; j < searchPosition; ++j)
+					{
+						//黑色变白色，左边界
+						if (
+							(*(Image + i*PICTURE_WIDTH + j) == BLACK_POINT) &&
+							(*(Image + i*PICTURE_WIDTH + j - 1) == BLACK_POINT) &&
+							(*(Image + i*PICTURE_WIDTH + j + 1) == WHITE_POINT) &&
+							(*(Image + i*PICTURE_WIDTH + j + 2) == WHITE_POINT) &&
+							(*(Image + i*PICTURE_WIDTH + j + 3) == WHITE_POINT)
+							)
+						{
+							*(boundLeft + i) = j;
+							leftFind = 1;
+							break;
+						}
+					}
+					searchPosition = PICTURE_WIDTH - 3;
+					//近处第一行扫描找右边界
+					for (; j < searchPosition; ++j)
+					{
+						//白色变黑色，右边界
+						if
+							(
+							(*(Image + i*PICTURE_WIDTH + j) == WHITE_POINT) &&
+							(*(Image + i*PICTURE_WIDTH + j - 1) == WHITE_POINT) &&
+							(*(Image + i*PICTURE_WIDTH + j - 2) == WHITE_POINT) &&
+							(*(Image + i*PICTURE_WIDTH + j + 1) == BLACK_POINT) &&
+							(*(Image + i*PICTURE_WIDTH + j + 2) == BLACK_POINT)
+							)
+						{
+							*(boundRight + i) = j;
+							rightFind = 1;
+							break;
+						}
+					}
+
+					if (leftFind && rightFind)
+					{
+						lastFirstMidPoint = (unsigned char)((*(boundLeft + i) + *(boundRight + i)) / 2);
+						leftSerchPoint.x = *(boundLeft + i);
+						leftSerchPoint.y = i;
+						rightSerchPoint.x = *(boundRight + i);
+						rightSerchPoint.y = i;
+					}
+					else if (!leftFind && rightFind)
+					{
+						*(boundLeft + i) = 0;
+						lastFirstMidPoint = (unsigned char)((*(boundRight + i)) / 2);
+						rightSerchPoint.x = *(boundRight + i);
+						rightSerchPoint.y = i;
+					}
+					else if (leftFind && !rightFind)
+					{
+						*(boundRight + i) = PICTURE_WIDTH - 1;
+						lastFirstMidPoint = (unsigned char)((*(boundLeft + i) + *(boundRight + i)) / 2);
+						leftSerchPoint.x = *(boundLeft + i);
+						leftSerchPoint.y = i;
+					}
+					else
+					{
+						*(boundLeft + i) = 0;
+						*(boundRight + i) = PICTURE_WIDTH - 1;
+						lastFirstMidPoint = middlePoint;
+					}
+					*(MidPoints + i) = lastFirstMidPoint;
+#if CONSOLE_PRINT
+					printf("LINE %d's MID POINT:%d ,LEFT:%d RIGHT:%d\n", i, lastFirstMidPoint, *(boundLeft + i), *(boundRight + i));
+#endif
+					--i;
+				}
+			}
 		}
 		--i;
 	}
 	(leftBoundPoints + leftBoundCnt)->x = -1;
+	(rightBoundPoints + rightBoundCnt)->x = -1;
 }

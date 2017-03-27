@@ -11,6 +11,7 @@
 using namespace std;
 
 extern POINT leftBoundPoints[];
+extern POINT rightBoundPoints[];
 extern int pixdata[];
 extern char buffer[];
 
@@ -18,7 +19,7 @@ IplImage* src = 0;//放大的图像
 IplImage* dst = 0;//用于保存放大的图像，显示坐标时使用
 IplImage *perspective_transformation_img;//逆透视后的图像
 IplImage *cvImg;//从txt读取出的图像
-char filename[] = ".\\one\\00001.TXT";
+char filename[] = ".\\roundtest\\one\\00001.TXT";
 int file_count = 0;
 
 void convert(void)
@@ -103,6 +104,7 @@ void show_image(char * filename)
 	cvSaveImage(".//a.bmp", cvImg);
 	cvSaveImage(".//aa.bmp", perspective_transformation_image);
 	CenterLineExtraction();
+	
 }
 
 void on_mouse(int event, int x, int y, int flags, void* ustc)
@@ -120,7 +122,25 @@ void on_mouse(int event, int x, int y, int flags, void* ustc)
 
 		char temp[16];
 		sprintf(temp, "(%d,%d)", pt.x/8, pt.y/8);
-		
+		CvPoint p;
+		int cnt = 0;
+		//cvCopy(dst, src, 0);
+		while ((leftBoundPoints + cnt)->x != -1)
+		{
+			p.x = ((leftBoundPoints + cnt)->x) * 8;
+			p.y = ((leftBoundPoints + cnt)->y) * 8;
+			cvCircle(src, p, 3, cvScalar(34, 177, 76, 0));
+			cnt++;
+		}
+		cnt = 0;
+		//cvCopy(dst, src, 0);
+		while ((rightBoundPoints + cnt)->x != -1)
+		{
+			p.x = ((rightBoundPoints + cnt)->x) * 8;
+			p.y = ((rightBoundPoints + cnt)->y) * 8;
+			cvCircle(src, p, 3, cvScalar(0, 0, 255, 0));
+			cnt++;
+		}
 		cvPutText(src, temp, pt, &font, cvScalar(34, 177, 76, 0));
 		cvPutText(src, "NEXT", pt1, &font1, cvScalar(34, 177, 76, 0));
 		cvPutText(src, "PREVIOUS", pt2, &font1, cvScalar(34, 177, 76, 0));
